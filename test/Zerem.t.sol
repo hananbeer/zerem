@@ -19,9 +19,9 @@ contract ZeremTest is Test {
 
         testToken = true;
         if (testToken)
-            zerem = new ZeremToken(underlyingToken, minLockAmount, unlockDelaySec, unlockPeriodSec);
+            zerem = new ZeremToken(underlyingToken, minLockAmount, unlockDelaySec, unlockPeriodSec, address(this));
         else
-            zerem = new ZeremEther(minLockAmount, unlockDelaySec, unlockPeriodSec);
+            zerem = new ZeremEther(minLockAmount, unlockDelaySec, unlockPeriodSec, address(this));
     }
 
     function testTransferNoFunds() public {

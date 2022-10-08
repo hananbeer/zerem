@@ -9,13 +9,13 @@ contract ZeremFactory {
         bytes32 id = keccak256(abi.encode(msg.sender, _token)); //??}
 
         if (_token == address(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE)) {
-          ZeremEther zeremEth = new ZeremEther{ salt: id }(_minLockAmount, _unlockDelaySec, _unlockPeriodSec);
+          ZeremEther zeremEth = new ZeremEther{ salt: id }(_minLockAmount, _unlockDelaySec, _unlockPeriodSec, address(this));
           zerems[id] = address(zeremEth);
 
           return address(zeremEth);
         }
 
-        Zerem zerem = new ZeremToken{ salt: id }(_token, _minLockAmount, _unlockDelaySec, _unlockPeriodSec);
+        Zerem zerem = new ZeremToken{ salt: id }(_token, _minLockAmount, _unlockDelaySec, _unlockPeriodSec, address(this));
         zerems[id] = address(zerem);
 
         return address(zerem);

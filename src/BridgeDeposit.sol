@@ -20,12 +20,12 @@ contract BridgeDeposit {
     constructor(
         uint256 _maxDepositAmount,
         uint256 _maxBalance,
-        bool _canReceiveDeposit,
+        bool _canReceiveDeposit
     ) {
         uint256 _minLockAmount = 10e18;
         uint256 _unlockDelaySec = 24 hours;
         uint256 _unlockPeriodSec = 48 hours;
-        zerem = new ZeremEther(_minLockAmount, _unlockDelaySec, _unlockPeriodSec);
+        zerem = new ZeremEther(_minLockAmount, _unlockDelaySec, _unlockPeriodSec, address(this));
 
         owner = msg.sender;
         maxDepositAmount = _maxDepositAmount;
