@@ -67,17 +67,10 @@ contract ZeremEther {
         // TODO: require(onlyBank)
         // amount must equal msg.value because we want to keep the same interface between Zerems
         require(msg.value == amount, "amount must equal msg.value");
-
-        uint256 oldBalance = totalTokenBalance;
-        totalTokenBalance = address(this).balance;
-        uint256 transferredAmount = totalTokenBalance - oldBalance;
-        // if this requirement fails it implies calling contract failure
-        // to transfer this contract `amount` tokens.
-        require(transferredAmount >= amount, "not enough ether");
         
         if (amount < minLockAmount) {
-            // TODO: use safeTransfer
-            payable(user).transfer{gas: 3000}(amount);
+            // TODO: check success here and below
+            payable(user).call{gas: 3000}(amount);
 
             emit TransferFulfilled(user, amount, 0);
         } else {
@@ -102,7 +95,7 @@ contract ZeremEther {
         record.remainingAmount = remainingAmount;
         pendingTotalBalances[user] -= amount;
 
-        payable(user).transfer{gas: 3000}(amount);
+        payable(user).call{gas: 3000}(amount);
         emit TransferFulfilled(user, amount, remainingAmount);
     }
 }
