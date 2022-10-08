@@ -65,7 +65,7 @@ contract ZeremTest is Test {
 
         vm.warp(block.timestamp + 24 hours);
         uint256 withdrawableAmount0 = zerem.getWithdrawableAmount(address(this), lockTimestamp);
-        assertEq(lockTimestamp, 0);
+        assertEq(withdrawableAmount0, 0);
 
         vm.warp(block.timestamp + 24 hours);
         uint256 withdrawableAmount0_5 = zerem.getWithdrawableAmount(address(this), lockTimestamp);
