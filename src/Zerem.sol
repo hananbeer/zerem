@@ -77,6 +77,19 @@ contract Zerem {
         pendingTotalBalances[user] += amount;
     }
 
+    function _unlockFor(address user, uint256 lockTimestamp, address receiver) internal {
+        bytes32 transferId = keccak256(abi.encode(user, lockTimestamp));
+        uint256 amount = _getWithdrawableAmount(transferId);
+        require(amount > 0, "no withdrawable funds");
+        TransferRecord storage record = pendingTransfers[transferId];
+        uint256 remainingAmount = record.remainingAmount - amount;
+        record.remainingAmount = remainingAmount;
+        pendingTotalBalances[user] -= amount;
+
+        _sendFunds(receiver, amount);
+        emit TransferFulfilled(user, amount, remainingAmount);
+    }
+
     function _getWithdrawableAmount(bytes32 transferId) internal view returns (uint256 withdrawableAmount) {
         TransferRecord storage record = _getRecord(transferId);
 
@@ -99,7 +112,14 @@ contract Zerem {
         if (deltaTimeDelayed >= unlockPeriodSec)
             withdrawableAmount = record.remainingAmount;
         else {
-            withdrawableAmount = (record.totalAmount * 1e5 * deltaTimeDelayed) / (1e5 * unlockPeriodSec);
+            // calculate the total amount unlocked amount
+            uint256 totalUnlockedAmount = (record.totalAmount * 1e5 * deltaTimeDelayed) / (1e5 * unlockPeriodSec);
+            // subtract the already withdrawn amount from the unlocked amount
+            uint256 withdrawnAmount = record.totalAmount - record.remainingAmount;
+            if (totalUnlockedAmount < withdrawnAmount)
+                return 0;
+
+            withdrawableAmount = totalUnlockedAmount - withdrawnAmount;
             if (withdrawableAmount > record.remainingAmount)
                 withdrawableAmount = record.remainingAmount;
         }
@@ -110,6 +130,9 @@ contract Zerem {
         return _getWithdrawableAmount(transferId);
     }
 
+    // 1. Transfer funds to Zerem
+    // 2. Calculate funds user owns (amount < lockThreshold)
+    // 3. Check if user can recive funds now or funds must be locked
     function transferTo(address user, uint256 amount) payable public {
         uint256 oldBalance = totalTokenBalance;
         totalTokenBalance = _getLockedBalance();
@@ -127,25 +150,15 @@ contract Zerem {
         }
     }
 
-    function _unlockFor(address user, uint256 lockTimestamp, address receiver) public {
-        bytes32 transferId = keccak256(abi.encode(user, lockTimestamp));
-        uint256 amount = _getWithdrawableAmount(transferId);
-        require(amount > 0, "no withdrawable funds");
-        TransferRecord storage record = pendingTransfers[transferId];
-        uint256 remainingAmount = record.remainingAmount - amount;
-        record.remainingAmount = remainingAmount;
-        pendingTotalBalances[user] -= amount;
-
-        _sendFunds(receiver, amount);
-        emit TransferFulfilled(user, amount, remainingAmount);
-    }
-
+    // 1. check for user his withdrawable amount (_getWithdrawableAmount)
+    // 2. if user_withdrawable_funds > 0 then send user his funds
     function unlockFor(address user, uint256 lockTimestamp) public {
         // TOOD: send relayer fees here
         // (but only allow after unlockDelay + unlockPeriod + relayerGracePeriod)
         _unlockFor(user, lockTimestamp, user);
     }
 
+    // allow a user to freeze his own funds
     function freezeFunds(address user, uint256 lockTimestamp) public {
         TransferRecord storage record = _getRecord(user, lockTimestamp);
         require(msg.sender == record.sender, "must be funds sender");
@@ -153,6 +166,7 @@ contract Zerem {
         // TODO: emit event
     }
 
+    // allow a user to freeze his own funds
     function unfreezeFunds(address user, uint256 lockTimestamp) public {
         TransferRecord storage record = _getRecord(user, lockTimestamp);
         require(msg.sender == record.sender, "must be funds sender");
