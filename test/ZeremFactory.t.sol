@@ -26,16 +26,16 @@ contract ZeremFactoryTest is Test {
     }
 
     function testShouldDeploy() public {
-        address addr = zeremFactory.deploy(underlyingToken, minLockAmount, unlockDelaySec, unlockPeriodSec);
-        assert(addr != address(0));
+        Zerem addr = zeremFactory.deploy(underlyingToken, minLockAmount, unlockDelaySec, unlockPeriodSec);
+        assert(address(addr) != address(0));
     }
 
     function testGetZeremFromID() public {
         vm.prank(addr1);
 
         bytes32 id = keccak256(abi.encode(addr1, underlyingToken));
-        address deployed_address = zeremFactory.deploy(underlyingToken, minLockAmount, unlockDelaySec, unlockPeriodSec);
-        assert(zeremFactory.getZerem(id) == deployed_address);
+        Zerem deployed_address = zeremFactory.deploy(underlyingToken, minLockAmount, unlockDelaySec, unlockPeriodSec);
+        assert(zeremFactory.getZerem(id) == address(deployed_address));
 
         vm.stopPrank();
     }
@@ -43,8 +43,8 @@ contract ZeremFactoryTest is Test {
     function testGetZeremFromParams() public {
         vm.prank(addr1);
 
-        address deployed_address = zeremFactory.deploy(underlyingToken, minLockAmount, unlockDelaySec, unlockPeriodSec);
-        assert(zeremFactory.getZerem(addr1, underlyingToken) == deployed_address);
+        Zerem deployed_address = zeremFactory.deploy(underlyingToken, minLockAmount, unlockDelaySec, unlockPeriodSec);
+        assert(zeremFactory.getZerem(addr1, underlyingToken) == address(deployed_address));
 
         vm.stopPrank();
     }
