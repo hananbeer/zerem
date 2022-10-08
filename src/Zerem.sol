@@ -15,9 +15,9 @@ contract Zerem {
         uint256 remainingAmount;
     }
 
-    // constructor() {
-    //     revert("cannot deploy base class");
-    // }
+    constructor() {
+         revert("cannot deploy base class");
+    }
 
     // keccak256(address user, uint256 timestamp) => Transfer
     mapping (bytes32 => TransferRecord) public pendingTransfers;
@@ -44,7 +44,7 @@ contract Zerem {
         pendingTotalBalances[user] += amount;
     }
 
-    function _getWithdrawableAmount(TransferRecord storage record) internal returns (uint256 withdrawableAmount) {
+    function _getWithdrawableAmount(TransferRecord storage record) internal view returns (uint256 withdrawableAmount) {
         require(record.totalAmount > 0, "no such record");
         uint256 delta = block.timestamp - record.lockTimestamp;
         
@@ -73,7 +73,7 @@ contract Zerem {
         }
     }
 
-    function getWithdrawableAmount(address user, uint256 timestamp) public returns (uint256 amount) {
+    function getWithdrawableAmount(address user, uint256 timestamp) public view returns (uint256 amount) {
         bytes32 transferId = keccak256(abi.encode(user, timestamp));
         return _getWithdrawableAmount(pendingTransfers[transferId]);
     }
