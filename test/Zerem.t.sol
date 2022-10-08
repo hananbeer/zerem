@@ -37,8 +37,6 @@ contract ZeremTest is Test {
         zerem.transferTo(address(this), amount);
         Vm.Log[] memory entries = vm.getRecordedLogs();
         assertEq(entries.length, 2);
-        console.logBytes32(entries[1].topics[1]);
-        console.logAddress(address(this));
         assertEq(entries[1].topics[0], keccak256("TransferFulfilled(address,uint256,uint256)"));
         assertEq(uint256(entries[1].topics[1]), uint256(uint160(address(this))));
 
@@ -56,9 +54,6 @@ contract ZeremTest is Test {
         Vm.Log[] memory entries = vm.getRecordedLogs();
 
         assertEq(entries.length, 1);
-        console.logBytes32(entries[0].topics[0]);
-        console.logAddress(address(this));
-        console.logBytes32(entries[0].topics[1]);
         assertEq(entries[0].topics[0], keccak256("TransferLocked(address,uint256,uint256)"));
         assertEq(uint256(entries[0].topics[1]), uint256(uint160(address(this))));
 
@@ -88,9 +83,6 @@ contract ZeremTest is Test {
         Vm.Log[] memory entries = vm.getRecordedLogs();
 
         assertEq(entries.length, 1);
-        console.logBytes32(entries[0].topics[0]);
-        console.logAddress(address(this));
-        console.logBytes32(entries[0].topics[1]);
         assertEq(entries[0].topics[0], keccak256("TransferLocked(address,uint256,uint256)"));
         assertEq(uint256(entries[0].topics[1]), uint256(uint160(address(this))));
 
