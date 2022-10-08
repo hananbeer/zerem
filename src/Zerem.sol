@@ -46,18 +46,18 @@ contract Zerem {
     function _getLockedBalance() internal virtual returns (uint256) {}
     function _sendFunds(address receiver, uint256 amount) internal virtual {}
 
-    function _getTransferId(address user, uint256 lockTimestamp) internal returns (bytes32) {
+    function _getTransferId(address user, uint256 lockTimestamp) internal pure returns (bytes32) {
         bytes32 transferId = keccak256(abi.encode(user, lockTimestamp));
         return transferId;
     }
 
-    function _getRecord(bytes32 transferId) internal returns (TransferRecord storage) {
+    function _getRecord(bytes32 transferId) internal view returns (TransferRecord storage) {
         TransferRecord storage record = pendingTransfers[transferId];
         require(record.totalAmount > 0, "no such transfer record");
         return record;
     }
 
-    function _getRecord(address user, uint256 lockTimestamp) internal returns (TransferRecord storage) {
+    function _getRecord(address user, uint256 lockTimestamp) internal view returns (TransferRecord storage) {
         bytes32 transferId = keccak256(abi.encode(user, lockTimestamp));
         return _getRecord(transferId);
     }
@@ -77,10 +77,9 @@ contract Zerem {
         pendingTotalBalances[user] += amount;
     }
 
-    function _getWithdrawableAmount(bytes32 transferId) internal returns (uint256 withdrawableAmount) {
+    function _getWithdrawableAmount(bytes32 transferId) internal view returns (uint256 withdrawableAmount) {
         TransferRecord storage record = _getRecord(transferId);
-        uint256 delta = block.timestamp - record.lockTimestamp;
-        
+
         // calculate unlock function
         // in this case, we are using a delayed linear unlock:
         // f(t) = amount * delta
@@ -106,12 +105,12 @@ contract Zerem {
         }
     }
 
-    function getWithdrawableAmount(address user, uint256 lockTimestamp) public returns (uint256 amount) {
+    function getWithdrawableAmount(address user, uint256 lockTimestamp) public view returns (uint256 amount) {
         bytes32 transferId = _getTransferId(user, lockTimestamp);
         return _getWithdrawableAmount(transferId);
     }
 
-    function transferTo(address user, uint256 amount) public {
+    function transferTo(address user, uint256 amount) payable public {
         uint256 oldBalance = totalTokenBalance;
         totalTokenBalance = _getLockedBalance();
         uint256 transferredAmount = totalTokenBalance - oldBalance;
@@ -137,7 +136,7 @@ contract Zerem {
         record.remainingAmount = remainingAmount;
         pendingTotalBalances[user] -= amount;
 
-        _sendFunds(user, amount);
+        _sendFunds(receiver, amount);
         emit TransferFulfilled(user, amount, remainingAmount);
     }
 
@@ -187,12 +186,13 @@ contract ZeremEther is Zerem {
     ) {
     }
 
-    function _getLockedBalance() internal override returns (uint256) {
+    function _getLockedBalance() internal view override returns (uint256) {
         return address(this).balance;
     }
 
     function _sendFunds(address receiver, uint256 amount) internal override {
-        payable(receiver).call{gas: 3000, value: amount}(hex"");
+        (bool success, ) = payable(receiver).call{gas: 3000, value: amount}(hex"");
+        require(success, "sending ether failed");
     }
 }
 
@@ -212,12 +212,13 @@ contract ZeremToken is Zerem {
     ) {
     }
 
-    function _getLockedBalance() internal override returns (uint256) {
+    function _getLockedBalance() internal view override returns (uint256) {
         return IERC20(underlyingToken).balanceOf(address(this));
     }
 
     function _sendFunds(address receiver, uint256 amount) internal override {
         // TODO: use safeTransfer
+        require(msg.value == 0, "msg.value must be zero");
         IERC20(underlyingToken).transfer(receiver, amount);
     }
 }

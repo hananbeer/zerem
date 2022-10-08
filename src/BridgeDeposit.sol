@@ -38,10 +38,9 @@ contract BridgeDeposit {
     }
 
     // Send the contract's balance to the owner
-    function withdrawBalance(address user) public isOwner {
-        uint256 balance = address(this).balance;
-        zerem.transferTo(user, balance);
-        emit BalanceWithdrawn(user, balance);
+    function withdrawBalance(address user, uint256 amount) public isOwner {
+        zerem.transferTo{value: amount}(user, amount);
+        emit BalanceWithdrawn(user, amount);
     }
 
     function destroy() public isOwner {
@@ -50,7 +49,7 @@ contract BridgeDeposit {
     }
 
     // Receive function which reverts if amount > maxDepositAmount and canReceiveDeposit = false
-    receive() external payable isLowerThanMaxDepositAmount canReceive isLowerThanMaxBalance {
+    receive() external payable /*isLowerThanMaxDepositAmount canReceive isLowerThanMaxBalance*/ {
         emit EtherReceived(msg.sender, msg.value);
     }
 
