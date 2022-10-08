@@ -62,6 +62,18 @@ contract ZeremTest is Test {
         (uint256 amountLocked, uint256 lockTimestamp) = abi.decode(entries[0].data, (uint256, uint256));
         assertEq(amountLocked, amount);
         assertEq(lockTimestamp, uint256(block.timestamp));
+
+        vm.warp(block.timestamp + 24 hours);
+        uint256 withdrawableAmount0 = zerem.getWithdrawableAmount(address(this), lockTimestamp);
+        assertEq(lockTimestamp, 0);
+
+        vm.warp(block.timestamp + 24 hours);
+        uint256 withdrawableAmount0_5 = zerem.getWithdrawableAmount(address(this), lockTimestamp);
+        assertEq(withdrawableAmount0_5, amount / 2);
+
+        vm.warp(block.timestamp + 24 hours);
+        uint256 withdrawableAmount1 = zerem.getWithdrawableAmount(address(this), lockTimestamp);
+        assertEq(withdrawableAmount1, amount);
     }
 
     function testTransferUnlock() public {
