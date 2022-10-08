@@ -128,7 +128,7 @@ contract Zerem {
         }
     }
 
-    function _unlockFor(address user, uint256 lockTimestamp, address receiver) internal {
+    function _unlockFor(address user, uint256 lockTimestamp, address receiver) public {
         bytes32 transferId = keccak256(abi.encode(user, lockTimestamp));
         uint256 amount = _getWithdrawableAmount(transferId);
         require(amount > 0, "no withdrawable funds");
@@ -202,6 +202,7 @@ contract ZeremToken is Zerem {
         uint256 _lockThreshold,
         uint256 _unlockDelaySec,
         uint256 _unlockPeriodSec,
+        address _token,
         address _liquidationResolver
     ) Zerem(
         _token,
