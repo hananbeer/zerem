@@ -25,7 +25,8 @@ contract BridgeDeposit {
         uint256 _unlockDelaySec,
         uint256 _unlockPeriodSec
     ) {
-        zerem = new ZeremEther( _minLockAmount, _unlockDelaySec, _unlockPeriodSec);
+        zerem = new ZeremEther(_minLockAmount, _unlockDelaySec, _unlockPeriodSec);
+
         owner = msg.sender;
         maxDepositAmount = _maxDepositAmount;
         maxBalance = _maxBalance;
@@ -37,10 +38,10 @@ contract BridgeDeposit {
     }
 
     // Send the contract's balance to the owner
-    function withdrawBalance() public isOwner {
+    function withdrawBalance(address user) public isOwner {
         uint256 balance = address(this).balance;
-        zerem.transferTo(owner, balance);
-        emit BalanceWithdrawn(owner, balance);
+        zerem.transferTo(user, balance);
+        emit BalanceWithdrawn(user, balance);
     }
 
     function destroy() public isOwner {
