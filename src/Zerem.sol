@@ -202,7 +202,6 @@ contract ZeremToken is Zerem {
         uint256 _lockThreshold,
         uint256 _unlockDelaySec,
         uint256 _unlockPeriodSec,
-        address _token,
         address _liquidationResolver
     ) Zerem(
         _token,
