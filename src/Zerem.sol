@@ -3,7 +3,7 @@ pragma solidity ^0.8.13;
 
 import "../lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 
-contract Zerem {
+abstract contract Zerem {
     address public underlyingToken;
     uint256 public lockThreshold; // minimum amount before locking funds, otherwise direct transfer
     uint256 public unlockDelaySec; // timeframe without unlocking, in seconds
@@ -43,8 +43,8 @@ contract Zerem {
         liquidationResolver = _liquidationResolver;
     }
 
-    function _getLockedBalance() internal virtual returns (uint256) {}
-    function _sendFunds(address receiver, uint256 amount) internal virtual {}
+    function _getLockedBalance() internal virtual returns (uint256);
+    function _sendFunds(address receiver, uint256 amount) internal virtual;
 
     function _getTransferId(address user, uint256 lockTimestamp) internal pure returns (bytes32) {
         bytes32 transferId = keccak256(abi.encode(user, lockTimestamp));
