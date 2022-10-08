@@ -101,9 +101,10 @@ contract Zerem {
         TransferRecord storage record = pendingTransfers[transferId];
         uint256 amount = _getWithdrawableAmount(record);
         uint256 remainingAmount = record.remainingAmount - amount;
-        record.remainingAmount = amount;
+        record.remainingAmount = remainingAmount;
         pendingTotalBalances[user] -= amount;
 
+        IERC20(underlyingToken).transfer(user, amount);
         emit TransferFulfilled(user, amount, remainingAmount);
     }
 }

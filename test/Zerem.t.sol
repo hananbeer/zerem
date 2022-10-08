@@ -76,13 +76,42 @@ contract ZeremTest is Test {
         assertEq(withdrawableAmount1, amount);
     }
 
-    function testTransferUnlock() public {
-        
+    function testTransferLockAndUnlock() public {
+        uint256 amount = 1000e18;
+        IERC20(zerem.underlyingToken()).transfer(address(zerem), amount);
+
+        vm.recordLogs();
+        zerem.transferTo(address(this), amount);
+        Vm.Log[] memory entries = vm.getRecordedLogs();
+
+        assertEq(entries.length, 1);
+        console.logBytes32(entries[0].topics[0]);
+        console.logAddress(address(this));
+        console.logBytes32(entries[0].topics[1]);
+        assertEq(entries[0].topics[0], keccak256("TransferLocked(address,uint256,uint256)"));
+        assertEq(uint256(entries[0].topics[1]), uint256(uint160(address(this))));
+
+        (uint256 amountLocked, uint256 lockTimestamp) = abi.decode(entries[0].data, (uint256, uint256));
+        assertEq(amountLocked, amount);
+        assertEq(lockTimestamp, uint256(block.timestamp));
+
+        vm.warp(block.timestamp + 24 hours);
+        uint256 withdrawableAmount0 = zerem.getWithdrawableAmount(address(this), lockTimestamp);
+        assertEq(withdrawableAmount0, 0);
+
+        vm.warp(block.timestamp + 24 hours);
+        uint256 withdrawableAmount0_5 = zerem.getWithdrawableAmount(address(this), lockTimestamp);
+        assertEq(withdrawableAmount0_5, amount / 2);
+
+        uint256 balanceBefore = IERC20(zerem.underlyingToken()).balanceOf(address(this));
+        zerem.unlockFor(address(this), lockTimestamp);
+        uint256 balanceAfter = IERC20(zerem.underlyingToken()).balanceOf(address(this));
+        assertEq(balanceBefore + withdrawableAmount0_5 >= balanceAfter, true);
+
+        vm.warp(block.timestamp + 24 hours);
+        uint256 withdrawableAmount1 = zerem.getWithdrawableAmount(address(this), lockTimestamp);
+        assertEq(withdrawableAmount1, amount - (balanceAfter - balanceBefore));
+
+        zerem.unlockFor(address(this), lockTimestamp);
     }
-
-
-    // function testSetNumber(uint256 x) public {
-    //     counter.setNumber(x);
-    //     assertEq(counter.number(), x);
-    // }
 }
