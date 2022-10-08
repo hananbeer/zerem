@@ -8,6 +8,8 @@ import "./MockERC20.sol";
 
 contract ZeremTest is Test {
     Zerem public zerem;
+    bool testToken;
+
     function setUp() public {
         // usdc
         address underlyingToken = address(new MockERC20("mock", "mock", 1e28));
@@ -15,9 +17,11 @@ contract ZeremTest is Test {
         uint256 unlockDelaySec = 24 hours;
         uint256 unlockPeriodSec = 48 hours;
 
-       zerem = new Zerem(underlyingToken, minLockAmount, unlockDelaySec, unlockPeriodSec);
-
-        //deal(zerem.underlyingToken(), address(this), 1000e18);
+        testToken = true;
+        if (testToken)
+            zerem = new ZeremToken(underlyingToken, minLockAmount, unlockDelaySec, unlockPeriodSec);
+        else
+            zerem = new ZeremEther(minLockAmount, unlockDelaySec, unlockPeriodSec);
     }
 
     function testTransferNoFunds() public {
@@ -28,16 +32,15 @@ contract ZeremTest is Test {
     function testTransferNoLock() public {
         uint256 amount = 1e18;
         IERC20(zerem.underlyingToken()).transfer(address(zerem), amount);
-
+        
         vm.recordLogs();
         zerem.transferTo(address(this), amount);
         Vm.Log[] memory entries = vm.getRecordedLogs();
         assertEq(entries.length, 2);
-        console.logBytes32(entries[1].topics[0]);
-        console.logAddress(address(this));
         console.logBytes32(entries[1].topics[1]);
+        console.logAddress(address(this));
         assertEq(entries[1].topics[0], keccak256("TransferFulfilled(address,uint256,uint256)"));
-        assertEq(uint256(entries[0].topics[1]), uint256(uint160(address(this))));
+        assertEq(uint256(entries[1].topics[1]), uint256(uint160(address(this))));
 
         (uint256 withdrawnAmount, uint256 remainingAmount) = abi.decode(entries[1].data, (uint256, uint256));
         assertEq(withdrawnAmount, amount);

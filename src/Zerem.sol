@@ -15,6 +15,10 @@ contract Zerem {
         uint256 remainingAmount;
     }
 
+    // constructor() {
+    //     revert("cannot deploy base class");
+    // }
+
     // keccak256(address user, uint256 timestamp) => Transfer
     mapping (bytes32 => TransferRecord) public pendingTransfers;
 
@@ -26,11 +30,18 @@ contract Zerem {
     event TransferLocked(address indexed user, uint256 amount, uint256 timestamp);
     event TransferFulfilled(address indexed user, uint256 amountUnlocked, uint256 amountRemaining);
     
-    constructor(address _token, uint256 _minLockAmount, uint256 _unlockDelaySec, uint256 _unlockPeriodSec) {
-        underlyingToken = _token;
-        minLockAmount = _minLockAmount;
-        unlockDelaySec = _unlockDelaySec;
-        unlockPeriodSec = _unlockPeriodSec;
+    function _getBalance() internal virtual returns (uint256) {}
+    function _sendFunds(address user, uint256 amount) internal virtual {}
+
+    function _lockFunds(address user, uint256 amount) internal {
+        bytes32 transferId = keccak256(abi.encode(user, block.timestamp));
+        require(pendingTransfers[transferId].totalAmount == 0, "record already exists");
+        pendingTransfers[transferId] = TransferRecord({
+            lockTimestamp: block.timestamp,
+            totalAmount: amount,
+            remainingAmount: amount
+        });
+        pendingTotalBalances[user] += amount;
     }
 
     function _getWithdrawableAmount(TransferRecord storage record) internal returns (uint256 withdrawableAmount) {
@@ -71,27 +82,17 @@ contract Zerem {
         // TODO: require(onlyBank)
 
         uint256 oldBalance = totalTokenBalance;
-        totalTokenBalance = IERC20(underlyingToken).balanceOf(address(this));
+        totalTokenBalance = _getBalance();
         uint256 transferredAmount = totalTokenBalance - oldBalance;
         // if this requirement fails it implies calling contract failure
         // to transfer this contract `amount` tokens.
         require(transferredAmount >= amount, "not enough tokens");
         
         if (amount < minLockAmount) {
-            // TODO: use safeTransfer
-            IERC20(underlyingToken).transfer(user, amount);
-
+            _sendFunds(user, amount);
             emit TransferFulfilled(user, amount, 0);
         } else {
-            bytes32 transferId = keccak256(abi.encode(user, block.timestamp));
-            require(pendingTransfers[transferId].totalAmount == 0, "record already exists");
-            pendingTransfers[transferId] = TransferRecord({
-                lockTimestamp: block.timestamp,
-                totalAmount: amount,
-                remainingAmount: amount
-            });
-            pendingTotalBalances[user] += amount;
-
+            _lockFunds(user, amount);
             emit TransferLocked(user, amount, block.timestamp);
         }
     }
@@ -104,7 +105,42 @@ contract Zerem {
         record.remainingAmount = remainingAmount;
         pendingTotalBalances[user] -= amount;
 
-        IERC20(underlyingToken).transfer(user, amount);
+        _sendFunds(user, amount);
         emit TransferFulfilled(user, amount, remainingAmount);
+    }
+}
+
+contract ZeremEther is Zerem {
+    constructor(uint256 _minLockAmount, uint256 _unlockDelaySec, uint256 _unlockPeriodSec) {
+        underlyingToken = address(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
+        minLockAmount = _minLockAmount;
+        unlockDelaySec = _unlockDelaySec;
+        unlockPeriodSec = _unlockPeriodSec;
+    }
+
+    function _getBalance() internal override returns (uint256) {
+        return address(this).balance;
+    }
+
+    function _sendFunds(address user, uint256 amount) internal override {
+        payable(user).call{gas: 3000, value: amount}(hex"");
+    }
+}
+
+contract ZeremToken is Zerem {
+    constructor(address _token, uint256 _minLockAmount, uint256 _unlockDelaySec, uint256 _unlockPeriodSec) {
+        underlyingToken = _token;
+        minLockAmount = _minLockAmount;
+        unlockDelaySec = _unlockDelaySec;
+        unlockPeriodSec = _unlockPeriodSec;
+    }
+
+    function _getBalance() internal override returns (uint256) {
+        return IERC20(underlyingToken).balanceOf(address(this));
+    }
+
+    function _sendFunds(address user, uint256 amount) internal override {
+        // TODO: use safeTransfer
+        IERC20(underlyingToken).transfer(user, amount);
     }
 }
