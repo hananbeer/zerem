@@ -25,9 +25,7 @@ contract BridgeDeposit {
         uint256 _unlockDelaySec,
         uint256 _unlockPeriodSec
     ) {
-        ZeremFactory zeremFactory = new ZeremFactory();
-
-        zerem = zeremFactory.deploy(address(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE),_minLockAmount, _unlockDelaySec, _unlockPeriodSec);
+        zerem = new ZeremEther( _minLockAmount, _unlockDelaySec, _unlockPeriodSec);
         owner = msg.sender;
         maxDepositAmount = _maxDepositAmount;
         maxBalance = _maxBalance;
