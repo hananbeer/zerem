@@ -7,7 +7,7 @@
 pragma solidity ^0.8.13;
 
 import "../src/Zerem.sol";
-import "../src/ZeremFactory.sol";
+//import "../src/ZeremFactory.sol";
 
 contract BridgeDeposit {
     address private owner;
@@ -21,10 +21,10 @@ contract BridgeDeposit {
         uint256 _maxDepositAmount,
         uint256 _maxBalance,
         bool _canReceiveDeposit,
-        uint256 _minLockAmount,
-        uint256 _unlockDelaySec,
-        uint256 _unlockPeriodSec
     ) {
+        uint256 _minLockAmount = 10e18;
+        uint256 _unlockDelaySec = 24 hours;
+        uint256 _unlockPeriodSec = 48 hours;
         zerem = new ZeremEther(_minLockAmount, _unlockDelaySec, _unlockPeriodSec);
 
         owner = msg.sender;
