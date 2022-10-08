@@ -112,7 +112,14 @@ contract Zerem {
         if (deltaTimeDelayed >= unlockPeriodSec)
             withdrawableAmount = record.remainingAmount;
         else {
-            withdrawableAmount = (record.totalAmount * 1e5 * deltaTimeDelayed) / (1e5 * unlockPeriodSec);
+            // calculate the total amount unlocked amount
+            uint256 totalUnlockedAmount = (record.totalAmount * 1e5 * deltaTimeDelayed) / (1e5 * unlockPeriodSec);
+            // subtract the already withdrawn amount from the unlocked amount
+            uint256 withdrawnAmount = record.totalAmount - record.remainingAmount;
+            if (totalUnlockedAmount < withdrawnAmount)
+                return 0;
+
+            withdrawableAmount = totalUnlockedAmount - withdrawnAmount;
             if (withdrawableAmount > record.remainingAmount)
                 withdrawableAmount = record.remainingAmount;
         }

@@ -2,6 +2,34 @@
 
 Zerem is a circuit breaker to help keep funds safe.
 
+## Installing
+
+```
+git clone https://github.com/hananbeer/zerem
+cd zerem
+forge install
+```
+
+## Building
+
+```
+forge build
+```
+
+## Testing
+
+test everything with maximum verbosity:
+```
+forge test -vvv
+```
+
+test a specific test suite:
+```
+forge test -vvv --match Zerem
+```
+
+## Using
+
 ## Architecture
 
 Bridge.sol -> Zerem.sol -> user address
