@@ -122,7 +122,7 @@ contract Zerem {
         }
     }
 
-    function _unlockFor(address user, uint256 lockTimestamp, address receiver) {
+    function _unlockFor(address user, uint256 lockTimestamp, address receiver) public {
         bytes32 transferId = keccak256(abi.encode(user, lockTimestamp));
         TransferRecord storage record = pendingTransfers[transferId];
         uint256 amount = _getWithdrawableAmount(record);
@@ -186,7 +186,8 @@ contract ZeremToken is Zerem {
         uint256 _lockThreshold,
         uint256 _unlockDelaySec,
         uint256 _unlockPeriodSec,
-        address _token
+        address _token,
+        address _liquidationResolver
     ) Zerem(
         msg.sender,
         _token,
