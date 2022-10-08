@@ -7,7 +7,7 @@
 pragma solidity ^0.8.13;
 
 import "../src/Zerem.sol";
-import "../src/ZeremFactory.sol";
+//import "../src/ZeremFactory.sol";
 
 contract BridgeDeposit {
     address private owner;
@@ -20,12 +20,12 @@ contract BridgeDeposit {
     constructor(
         uint256 _maxDepositAmount,
         uint256 _maxBalance,
-        bool _canReceiveDeposit,
-        uint256 _minLockAmount,
-        uint256 _unlockDelaySec,
-        uint256 _unlockPeriodSec
+        bool _canReceiveDeposit
     ) {
-        zerem = new ZeremEther(_minLockAmount, _unlockDelaySec, _unlockPeriodSec);
+        uint256 _minLockAmount = 10e18;
+        uint256 _unlockDelaySec = 24 hours;
+        uint256 _unlockPeriodSec = 48 hours;
+        zerem = new ZeremEther(_minLockAmount, _unlockDelaySec, _unlockPeriodSec, address(this));
 
         owner = msg.sender;
         maxDepositAmount = _maxDepositAmount;
@@ -38,10 +38,9 @@ contract BridgeDeposit {
     }
 
     // Send the contract's balance to the owner
-    function withdrawBalance(address user) public isOwner {
-        uint256 balance = address(this).balance;
-        zerem.transferTo(user, balance);
-        emit BalanceWithdrawn(user, balance);
+    function withdrawBalance(address user, uint256 amount) public isOwner {
+        zerem.transferTo{value: amount}(user, amount);
+        emit BalanceWithdrawn(user, amount);
     }
 
     function destroy() public isOwner {
@@ -50,7 +49,7 @@ contract BridgeDeposit {
     }
 
     // Receive function which reverts if amount > maxDepositAmount and canReceiveDeposit = false
-    receive() external payable isLowerThanMaxDepositAmount canReceive isLowerThanMaxBalance {
+    receive() external payable /*isLowerThanMaxDepositAmount canReceive isLowerThanMaxBalance*/ {
         emit EtherReceived(msg.sender, msg.value);
     }
 
