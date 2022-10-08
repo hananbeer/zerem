@@ -53,6 +53,3 @@ Where the delta is defined as `clamp(now - lockTime + unlockDelay, 0%,100%)`.
 An example would be `unlockDelaySec = 12 hours`,`unlockPeriodSec = 24 hours`, would give us initial 12 hours period with no unlock, following 24 hours period of gradual unlocking.
 
 2. `lockThreshold` - if `transferTo` is called with `amount < lockThreshold` then the amount is automatically transfer to user. So only funds above the level of lockThreshold will be locked in Zerem.
-
-```
-lockThreshold - this will configure the max amount a user is able to withdrawl 
