@@ -4,6 +4,8 @@ pragma solidity ^0.8.13;
 import "../lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 
 abstract contract Zerem {
+    uint256 immutable precision = 1e8;
+
     address public underlyingToken;
     uint256 public lockThreshold; // minimum amount before locking funds, otherwise direct transfer
     uint256 public unlockDelaySec; // timeframe without unlocking, in seconds
@@ -90,7 +92,80 @@ abstract contract Zerem {
         emit TransferFulfilled(user, amount, remainingAmount);
     }
 
+    // a gradual release function.
+    // t is in the range 0%~100% of period passed.
+    // return value should be in range 0%~100% otherwise it is clamped.
+    function _unlockFunc(uint256 t) internal virtual view returns (uint256);
+
     function _getWithdrawableAmount(bytes32 transferId) internal view returns (uint256 withdrawableAmount) {
+        TransferRecord storage record = _getRecord(transferId);
+
+        // calculate unlock function
+        // in this case, we are using a delayed linear unlock:
+        // f(t) = amount * delta
+        // delta = clamp(now - lockTime + unlockDelay, 0%, 100%)
+        // for example, start delay of 24 hours and end delay of 72 hours/
+        // give us initial 24 hours period with no unlock, following 48 hours period
+        // of gradual unlocking
+        // need to normalize between 0..1
+        // so (deltaTime - startDelay) / (endDelay - startDelay) = (deltaDelayed / 48hr)
+        // then clamp 0..1
+
+        // t = block.timestamp
+        // t0 = record.lockTimestamp
+        // d = unlockDelaySec
+        // p = unlockPeriodSec
+
+
+        // delta time:
+        // dt = t - t0
+        uint256 deltaTime = block.timestamp - record.lockTimestamp;
+        if (deltaTime < unlockDelaySec)
+            return 0;
+
+        // delta time delayed:
+        // ddt = dt - d
+        uint256 deltaTimeDelayed = (deltaTime - unlockDelaySec);
+
+        // ensure 0 <= (ddt / p) <= 1
+        if (deltaTimeDelayed >= unlockPeriodSec)
+            return record.remainingAmount;
+
+        // r = precision
+        // normalized delta time: (0..1)r
+        //       ddt * r
+        // ndt = -------
+        //          p
+        uint256 deltaTimeNormalized = (deltaTimeDelayed * precision) / unlockPeriodSec;
+
+        // calculate the total amount unlocked amount
+        // it should return a factor in range (0..1)r, otherwise it is clamped
+        uint256 factor = _unlockFunc(deltaTimeNormalized);
+
+        // clamp f(ndt)
+        if (factor > precision)
+            factor = precision;
+
+        // a = locked totalAmount
+        // u = totalUnlockedAmount
+        
+        // u = a * f(ndt)
+        uint256 totalUnlockedAmount = (record.totalAmount * factor) / precision;
+
+        // q = withdrawnAmount
+        // subtract the already withdrawn amount from the unlocked amount
+        uint256 withdrawnAmount = record.totalAmount - record.remainingAmount;
+        if (totalUnlockedAmount < withdrawnAmount)
+            return 0;
+
+        // w = withdrawableAmount
+        // w = u - q
+        withdrawableAmount = totalUnlockedAmount - withdrawnAmount;
+        if (withdrawableAmount > record.remainingAmount)
+            withdrawableAmount = record.remainingAmount;
+    }
+
+    function _getWithdrawableAmount_old(bytes32 transferId) internal view returns (uint256 withdrawableAmount) {
         TransferRecord storage record = _getRecord(transferId);
 
         // calculate unlock function
@@ -182,57 +257,5 @@ abstract contract Zerem {
         // just using a multiple of two for the total lock period
         require(block.timestamp > lockTimestamp + 2 * (unlockDelaySec + unlockPeriodSec), "liquidation too early");
         _unlockFor(user, lockTimestamp, liquidationResolver);
-    }
-}
-
-contract ZeremEther is Zerem {
-    constructor(
-        uint256 _lockThreshold,
-        uint256 _unlockDelaySec,
-        uint256 _unlockPeriodSec,
-        address _liquidationResolver
-    ) Zerem(
-        address(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE),
-        _lockThreshold,
-        _unlockDelaySec,
-        _unlockPeriodSec,
-        _liquidationResolver
-    ) {
-    }
-
-    function _getLockedBalance() internal view override returns (uint256) {
-        return address(this).balance;
-    }
-
-    function _sendFunds(address receiver, uint256 amount) internal override {
-        (bool success, ) = payable(receiver).call{gas: 3000, value: amount}(hex"");
-        require(success, "sending ether failed");
-    }
-}
-
-contract ZeremToken is Zerem {
-    constructor(
-        address _token,
-        uint256 _lockThreshold,
-        uint256 _unlockDelaySec,
-        uint256 _unlockPeriodSec,
-        address _liquidationResolver
-    ) Zerem(
-        _token,
-        _lockThreshold,
-        _unlockDelaySec,
-        _unlockPeriodSec,
-        _liquidationResolver
-    ) {
-    }
-
-    function _getLockedBalance() internal view override returns (uint256) {
-        return IERC20(underlyingToken).balanceOf(address(this));
-    }
-
-    function _sendFunds(address receiver, uint256 amount) internal override {
-        // TODO: use safeTransfer
-        require(msg.value == 0, "msg.value must be zero");
-        IERC20(underlyingToken).transfer(receiver, amount);
     }
 }

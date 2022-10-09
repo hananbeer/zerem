@@ -4,3 +4,6 @@
 [submodule "lib/openzeppelin-contracts"]
 	path = lib/openzeppelin-contracts
 	url = https://github.com/openzeppelin/openzeppelin-contracts
+[submodule "lib/FixedLibrary.git"]
+	path = lib/FixedLibrary.git
+	url = https://github.com/finkbeca/FixedLibrary.git
