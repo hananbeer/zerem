@@ -6,7 +6,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.13;
 
-import "../src/Zerem.sol";
+import "../src/ZeremAsset.sol";
 //import "../src/ZeremFactory.sol";
 
 contract BridgeDeposit {
