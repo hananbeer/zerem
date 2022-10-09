@@ -45,6 +45,7 @@ abstract contract Zerem {
 
     function _getLockedBalance() internal virtual returns (uint256);
     function _sendFunds(address receiver, uint256 amount) internal virtual;
+    function _getWithdrawableAmount(bytes32 transferId) internal virtual view returns (uint256 withdrawableAmount);
 
     function _getTransferId(address user, uint256 lockTimestamp) internal pure returns (bytes32) {
         bytes32 transferId = keccak256(abi.encode(user, lockTimestamp));
@@ -88,41 +89,6 @@ abstract contract Zerem {
 
         _sendFunds(receiver, amount);
         emit TransferFulfilled(user, amount, remainingAmount);
-    }
-
-    function _getWithdrawableAmount(bytes32 transferId) internal view returns (uint256 withdrawableAmount) {
-        TransferRecord storage record = _getRecord(transferId);
-
-        // calculate unlock function
-        // in this case, we are using a delayed linear unlock:
-        // f(t) = amount * delta
-        // delta = clamp(now - lockTime + unlockDelay, 0%, 100%)
-        // for example, start delay of 24 hours and end delay of 72 hours/
-        // give us initial 24 hours period with no unlock, following 48 hours period
-        // of gradual unlocking
-        // need to normalize between 0..1
-        // so (deltaTime - startDelay) / (endDelay - startDelay) = (deltaDelayed / 48hr)
-        // then clamp 0..1
-
-        uint256 deltaTime = block.timestamp - record.lockTimestamp;
-        if (deltaTime < unlockDelaySec)
-            return 0;
-
-        uint256 deltaTimeDelayed = (deltaTime - unlockDelaySec);
-        if (deltaTimeDelayed >= unlockPeriodSec)
-            withdrawableAmount = record.remainingAmount;
-        else {
-            // calculate the total amount unlocked amount
-            uint256 totalUnlockedAmount = (record.totalAmount * 1e5 * deltaTimeDelayed) / (1e5 * unlockPeriodSec);
-            // subtract the already withdrawn amount from the unlocked amount
-            uint256 withdrawnAmount = record.totalAmount - record.remainingAmount;
-            if (totalUnlockedAmount < withdrawnAmount)
-                return 0;
-
-            withdrawableAmount = totalUnlockedAmount - withdrawnAmount;
-            if (withdrawableAmount > record.remainingAmount)
-                withdrawableAmount = record.remainingAmount;
-        }
     }
 
     function getWithdrawableAmount(address user, uint256 lockTimestamp) public view returns (uint256 amount) {
@@ -185,7 +151,7 @@ abstract contract Zerem {
     }
 }
 
-contract ZeremEther is Zerem {
+abstract contract ZeremEther is Zerem {
     constructor(
         uint256 _lockThreshold,
         uint256 _unlockDelaySec,
@@ -210,7 +176,7 @@ contract ZeremEther is Zerem {
     }
 }
 
-contract ZeremToken is Zerem {
+abstract contract ZeremToken is Zerem {
     constructor(
         address _token,
         uint256 _lockThreshold,

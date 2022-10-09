@@ -6,7 +6,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.13;
 
-import "../src/Zerem.sol";
+import "../src/ZeremLinear.sol";
 //import "../src/ZeremFactory.sol";
 
 contract BridgeDeposit {
@@ -15,7 +15,7 @@ contract BridgeDeposit {
     uint256 private maxBalance;
     bool private canReceiveDeposit;
 
-    Zerem public zerem;
+    ZeremLinearEther public zerem;
 
     constructor(
         uint256 _maxDepositAmount,
@@ -25,7 +25,7 @@ contract BridgeDeposit {
         uint256 _minLockAmount = 10e18;
         uint256 _unlockDelaySec = 24 hours;
         uint256 _unlockPeriodSec = 48 hours;
-        zerem = new ZeremEther(_minLockAmount, _unlockDelaySec, _unlockPeriodSec, address(this));
+        zerem = new ZeremLinearEther(_minLockAmount, _unlockDelaySec, _unlockPeriodSec, address(this));
 
         owner = msg.sender;
         maxDepositAmount = _maxDepositAmount;
