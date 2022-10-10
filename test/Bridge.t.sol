@@ -3,7 +3,7 @@ pragma solidity ^0.8.13;
 
 import "forge-std/Test.sol";
 import "forge-std/console.sol";
-import "../src/ZeremAsset.sol";
+import "../src/Zerem.sol";
 import "../src/BridgeDeposit.sol";
 import "./MockERC20.sol";
 
