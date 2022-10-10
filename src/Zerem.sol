@@ -7,10 +7,12 @@ contract Zerem {
     uint256 immutable public precision = 1e8;
     address immutable NATIVE = address(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
 
-    uint8   public constant unlockExponent = 2;
+    uint8   public immutable unlockExponent;
+
+    address public immutable underlyingToken;
     
     // minimum amount before locking funds, otherwise direct transfer
-    uint256 public constant lockThreshold;
+    uint256 public immutable lockThreshold;
 
     // timeframe without unlocking, in seconds
     uint256 public immutable unlockDelaySec;
@@ -21,7 +23,6 @@ contract Zerem {
     address public liquidationResolver; // an address used to resolve liquidations
 
     struct TransferRecord {
-        address token;
         address sender;
         uint256 lockTimestamp;
         uint256 totalAmount;
@@ -35,38 +36,41 @@ contract Zerem {
     // user => amount
     mapping (address => uint256) public pendingTotalBalances;
 
-    // token => total amount
-    mapping (address => uint256) public totalTokenBalances;
+    uint256 public totalTokenBalance;
 
     event TransferLocked(address indexed user, uint256 amount, uint256 timestamp);
     event TransferFulfilled(address indexed user, uint256 amountUnlocked, uint256 amountRemaining);
 
     constructor(
+        address _token,
         uint256 _lockThreshold,
         uint256 _unlockDelaySec,
         uint256 _unlockPeriodSec,
+        uint8   _unlockExponent,
         address _liquidationResolver
     ) {
+        underlyingToken = _token;
         lockThreshold = _lockThreshold;
         unlockDelaySec = _unlockDelaySec;
         unlockPeriodSec = _unlockPeriodSec;
+        unlockExponent = _unlockExponent;
         liquidationResolver = _liquidationResolver;
     }
 
-    function _getLockedBalance(address token) internal view returns (uint256) {
-        if (token == NATIVE)
+    function _getLockedBalance() internal view returns (uint256) {
+        if (underlyingToken == NATIVE)
             return address(this).balance;
         else
-           return IERC20(token).balanceOf(address(this));
+           return IERC20(underlyingToken).balanceOf(address(this));
     }
 
-    function _sendFunds(address token, address receiver, uint256 amount) internal {
-        if (token == NATIVE) {
+    function _sendFunds(address receiver, uint256 amount) internal {
+        if (underlyingToken == NATIVE) {
             (bool success, ) = payable(receiver).call{gas: 3000, value: amount}(hex"");
             require(success, "sending ether failed");
         } else {
             require(msg.value == 0, "msg.value must be zero");
-            IERC20(token).transfer(receiver, amount);
+            IERC20(underlyingToken).transfer(receiver, amount);
         }
     }
 
@@ -86,11 +90,10 @@ contract Zerem {
         return _getRecord(transferId);
     }
 
-    function _lockFunds(address token, address user, uint256 amount) internal {
+    function _lockFunds(address user, uint256 amount) internal {
         bytes32 transferId = _getTransferId(user, block.timestamp);
         TransferRecord storage record = pendingTransfers[transferId];
         if (record.totalAmount == 0) {
-            record.token = token;
             record.sender = msg.sender;
             record.lockTimestamp = block.timestamp;
         } else {
@@ -226,9 +229,9 @@ contract Zerem {
     // 1. Transfer funds to Zerem
     // 2. Calculate funds user owns (amount < lockThreshold)
     // 3. Check if user can recive funds now or funds must be locked
-    function transferTo(address token, address user, uint256 amount) payable public {
+    function transferTo(address user, uint256 amount) payable public {
         uint256 oldBalance = totalTokenBalance;
-        totalTokenBalance = _getLockedBalance(token);
+        totalTokenBalance = _getLockedBalance();
         uint256 transferredAmount = totalTokenBalance - oldBalance;
         // if this requirement fails it implies calling contract failure
         // to transfer this contract `amount` tokens.

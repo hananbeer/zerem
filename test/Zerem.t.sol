@@ -3,6 +3,7 @@ pragma solidity ^0.8.13;
 
 import "forge-std/Test.sol";
 import "forge-std/console.sol";
+import "../src/Zerem.sol";
 import "./MockERC20.sol";
 
 contract ZeremTest is Test {
@@ -10,13 +11,17 @@ contract ZeremTest is Test {
     bool testToken;
 
     function setUp() public {
-        // usdc
         address underlyingToken = address(new MockERC20("mock", "mock", 1e28));
         uint256 minLockAmount = 1000e18; // 1k units
         uint256 unlockDelaySec = 24 hours;
         uint256 unlockPeriodSec = 48 hours;
+        uint8   unlockExponent = 1; // linear release
 
-        zerem = new Zerem(minLockAmount, unlockDelaySec, unlockPeriodSec, address(this));
+        testToken = true;
+        if (!testToken)
+            underlyingToken = address(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
+
+        zerem = new Zerem(underlyingToken, minLockAmount, unlockDelaySec, unlockPeriodSec, unlockExponent, address(this));
     }
 
     function testTransferNoFunds() public {
