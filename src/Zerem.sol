@@ -246,24 +246,6 @@ contract Zerem {
         }
     }
 
-<<<<<<< Updated upstream
-    // 1. check for user his withdrawable amount (_getWithdrawableAmount)
-    // 2. if user_withdrawable_funds > 0 then send user his funds
-=======
-    function _unlockFor(address user, uint256 lockTimestamp, address receiver) internal {
-        bytes32 transferId = keccak256(abi.encode(user, lockTimestamp));
-        uint256 amount = _getWithdrawableAmount(transferId);
-        require(amount > 0, "no withdrawable funds");
-        TransferRecord storage record = pendingTransfers[transferId];
-        uint256 remainingAmount = record.remainingAmount - amount;
-        record.remainingAmount = remainingAmount;
-        pendingTotalBalances[user] -= amount;
-
-        _sendFunds(receiver, amount);
-        emit TransferFulfilled(user, amount, remainingAmount);
-    }
-
->>>>>>> Stashed changes
     function unlockFor(address user, uint256 lockTimestamp) public {
         // TOOD: send relayer fees here
         // (but only allow after unlockDelay + unlockPeriod + relayerGracePeriod)
