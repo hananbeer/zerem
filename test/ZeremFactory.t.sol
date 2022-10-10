@@ -17,6 +17,7 @@ contract ZeremFactoryTest is Test {
     uint256 minLockAmount = 1000e18; // 1k units
     uint256 unlockDelaySec = 24 hours;
     uint256 unlockPeriodSec = 48 hours;
+    uint8   unlockExponent = 1;
 
     CheatCodes cheats = CheatCodes(HEVM_ADDRESS);
 
@@ -26,7 +27,7 @@ contract ZeremFactoryTest is Test {
     }
 
     function testShouldDeploy() public {
-        Zerem addr = zeremFactory.deploy(underlyingToken, minLockAmount, unlockDelaySec, unlockPeriodSec);
+        Zerem addr = zeremFactory.deploy(underlyingToken, minLockAmount, unlockDelaySec, unlockPeriodSec, unlockExponent);
         assert(address(addr) != address(0));
     }
 
@@ -34,7 +35,7 @@ contract ZeremFactoryTest is Test {
         vm.prank(addr1);
 
         bytes32 id = keccak256(abi.encode(addr1, underlyingToken));
-        Zerem deployed_address = zeremFactory.deploy(underlyingToken, minLockAmount, unlockDelaySec, unlockPeriodSec);
+        Zerem deployed_address = zeremFactory.deploy(underlyingToken, minLockAmount, unlockDelaySec, unlockPeriodSec, unlockExponent);
         assert(zeremFactory.getZerem(id) == address(deployed_address));
 
         vm.stopPrank();
@@ -43,7 +44,7 @@ contract ZeremFactoryTest is Test {
     function testGetZeremFromParams() public {
         vm.prank(addr1);
 
-        Zerem deployed_address = zeremFactory.deploy(underlyingToken, minLockAmount, unlockDelaySec, unlockPeriodSec);
+        Zerem deployed_address = zeremFactory.deploy(underlyingToken, minLockAmount, unlockDelaySec, unlockPeriodSec, unlockExponent);
         assert(zeremFactory.getZerem(addr1, underlyingToken) == address(deployed_address));
 
         vm.stopPrank();
