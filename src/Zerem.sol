@@ -3,16 +3,25 @@ pragma solidity ^0.8.13;
 
 import "../lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 
-abstract contract Zerem {
-    uint256 immutable precision = 1e8;
+contract Zerem {
+    uint256 immutable public precision = 1e8;
+    address immutable NATIVE = address(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
 
-    address public underlyingToken;
-    uint256 public lockThreshold; // minimum amount before locking funds, otherwise direct transfer
-    uint256 public unlockDelaySec; // timeframe without unlocking, in seconds
-    uint256 public unlockPeriodSec; // timeframe of gradual, linear unlock, in seconds
+    uint8   public constant unlockExponent = 2;
+    
+    // minimum amount before locking funds, otherwise direct transfer
+    uint256 public constant lockThreshold;
+
+    // timeframe without unlocking, in seconds
+    uint256 public immutable unlockDelaySec;
+
+    // timeframe of gradual, linear unlock, in seconds
+    uint256 public immutable unlockPeriodSec;
+
     address public liquidationResolver; // an address used to resolve liquidations
 
     struct TransferRecord {
+        address token;
         address sender;
         uint256 lockTimestamp;
         uint256 totalAmount;
@@ -26,27 +35,40 @@ abstract contract Zerem {
     // user => amount
     mapping (address => uint256) public pendingTotalBalances;
 
-    uint256 totalTokenBalance;
+    // token => total amount
+    mapping (address => uint256) public totalTokenBalances;
 
     event TransferLocked(address indexed user, uint256 amount, uint256 timestamp);
     event TransferFulfilled(address indexed user, uint256 amountUnlocked, uint256 amountRemaining);
 
     constructor(
-        address _token,
         uint256 _lockThreshold,
         uint256 _unlockDelaySec,
         uint256 _unlockPeriodSec,
         address _liquidationResolver
     ) {
-        underlyingToken = _token;
         lockThreshold = _lockThreshold;
         unlockDelaySec = _unlockDelaySec;
         unlockPeriodSec = _unlockPeriodSec;
         liquidationResolver = _liquidationResolver;
     }
 
-    function _getLockedBalance() internal virtual returns (uint256);
-    function _sendFunds(address receiver, uint256 amount) internal virtual;
+    function _getLockedBalance(address token) internal view returns (uint256) {
+        if (token == NATIVE)
+            return address(this).balance;
+        else
+           return IERC20(token).balanceOf(address(this));
+    }
+
+    function _sendFunds(address token, address receiver, uint256 amount) internal {
+        if (token == NATIVE) {
+            (bool success, ) = payable(receiver).call{gas: 3000, value: amount}(hex"");
+            require(success, "sending ether failed");
+        } else {
+            require(msg.value == 0, "msg.value must be zero");
+            IERC20(token).transfer(receiver, amount);
+        }
+    }
 
     function _getTransferId(address user, uint256 lockTimestamp) internal pure returns (bytes32) {
         bytes32 transferId = keccak256(abi.encode(user, lockTimestamp));
@@ -64,10 +86,11 @@ abstract contract Zerem {
         return _getRecord(transferId);
     }
 
-    function _lockFunds(address user, uint256 amount) internal {
+    function _lockFunds(address token, address user, uint256 amount) internal {
         bytes32 transferId = _getTransferId(user, block.timestamp);
         TransferRecord storage record = pendingTransfers[transferId];
         if (record.totalAmount == 0) {
+            record.token = token;
             record.sender = msg.sender;
             record.lockTimestamp = block.timestamp;
         } else {
@@ -92,11 +115,6 @@ abstract contract Zerem {
         emit TransferFulfilled(user, amount, remainingAmount);
     }
 
-    // a gradual release function.
-    // t is in the range 0%~100% of period passed.
-    // return value should be in range 0%~100% otherwise it is clamped.
-    function _unlockFunc(uint256 t) internal virtual view returns (uint256);
-
     function _getWithdrawableAmount(bytes32 transferId) internal view returns (uint256 withdrawableAmount) {
         TransferRecord storage record = _getRecord(transferId);
 
@@ -115,7 +133,6 @@ abstract contract Zerem {
         // t0 = record.lockTimestamp
         // d = unlockDelaySec
         // p = unlockPeriodSec
-
 
         // delta time:
         // dt = t - t0
@@ -140,7 +157,8 @@ abstract contract Zerem {
 
         // calculate the total amount unlocked amount
         // it should return a factor in range (0..1)r, otherwise it is clamped
-        uint256 factor = _unlockFunc(deltaTimeNormalized);
+        // f(ndt) = ndt^x where x = unlockExponent
+        uint256 factor = deltaTimeNormalized ** unlockExponent;
 
         // clamp f(ndt)
         if (factor > precision)
@@ -184,9 +202,9 @@ abstract contract Zerem {
             return 0;
 
         uint256 deltaTimeDelayed = (deltaTime - unlockDelaySec);
-        if (deltaTimeDelayed >= unlockPeriodSec)
+        if (deltaTimeDelayed >= unlockPeriodSec) {
             withdrawableAmount = record.remainingAmount;
-        else {
+        } else {
             // calculate the total amount unlocked amount
             uint256 totalUnlockedAmount = (record.totalAmount * 1e5 * deltaTimeDelayed) / (1e5 * unlockPeriodSec);
             // subtract the already withdrawn amount from the unlocked amount
@@ -208,9 +226,9 @@ abstract contract Zerem {
     // 1. Transfer funds to Zerem
     // 2. Calculate funds user owns (amount < lockThreshold)
     // 3. Check if user can recive funds now or funds must be locked
-    function transferTo(address user, uint256 amount) payable public {
+    function transferTo(address token, address user, uint256 amount) payable public {
         uint256 oldBalance = totalTokenBalance;
-        totalTokenBalance = _getLockedBalance();
+        totalTokenBalance = _getLockedBalance(token);
         uint256 transferredAmount = totalTokenBalance - oldBalance;
         // if this requirement fails it implies calling contract failure
         // to transfer this contract `amount` tokens.
