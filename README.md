@@ -59,7 +59,14 @@ It is not recommended to return the funds to the originating protocol since a di
 
 ## Integration
 
-TODO
+Integrating `Zerem` is as easy!
+
+Simply replace the target address `to` in `Token.transfer(to, amount)` or `Token.transferFrom(from, to, amount)`
+ to the `Zerem` contract instead then call `Zerem.transferTo(to, amount)`
+
+NOTE: `Zerem` is under active development and is subject so changes. There is currently no off-chain automatic release daemon and the token factory is partially implemented.
+
+There are no production deployments on any chain at the moment.
 
 ## Security
 
