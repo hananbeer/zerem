@@ -53,6 +53,15 @@ $u(x) = f(t) * x$
 
 Where $x$ is the amount of funds locked. (note that while not shown above, $f(t)$ is clamped to the range $[0, 1]$)
 
+![](gradual_funcs.png)
+
+The following graphs show various gradual release functions $f(t)$:
+
+- Constant (x^0 in green)
+- Linear (x^1 in blue)
+- Parabolic (x^2 in purple)
+- Hyper-exponential (x^255 in red)
+
 Additionally a liquidation resolver is specified - an address which receives disputed funds. It can be a governance contract, a neutral mediator multisig, etc.
 
 It is not recommended to return the funds to the originating protocol since a dispute may indicate a flaw in the protocol hence funds should be temporarily moved to a safe haven.
@@ -79,4 +88,3 @@ There are no production deployments on any chain at the moment.
 While `Zerem` protects protocols from unwanted outflow of funds such as certain exploits, rogue governance attacks, bad configuration and many other security flaws, there is a trade-off.
 
 Since `Zerem` does not hold protocol funds, it can only protect funds that are routed through it. It does not offer protection from certain rare type of security vulnerabilities such as arbitrary calls or delegatecalls (LiFi), approval manipulation (AnySwap), direct minting (Binance) and possibly other unique flaws.
-
