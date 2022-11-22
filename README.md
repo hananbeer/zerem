@@ -88,5 +88,3 @@ There are no production deployments on any chain at the moment.
 While `Zerem` protects protocols from unwanted outflow of funds such as certain exploits, rogue governance attacks, bad configuration and many other security flaws, there is a trade-off.
 
 Since `Zerem` does not hold protocol funds, it can only protect funds that are routed through it. It does not offer protection from certain rare type of security vulnerabilities such as arbitrary calls or delegatecalls (LiFi), approval manipulation (AnySwap), direct minting (Binance) and possibly other unique flaws.
-
-For a more hermetic solution see [Dereg Wrapper](https://github.com/Philogy/dereg-wrapper-contracts) which is an asset layer that implements similar mechanisms to `Zerem`.
