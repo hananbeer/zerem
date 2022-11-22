@@ -123,6 +123,10 @@ contract Zerem {
     function _getWithdrawableAmount(bytes32 transferId) internal view returns (uint256 withdrawableAmount) {
         TransferRecord storage record = _getRecordById(transferId);
 
+        // first make sure funds were not frozen
+        if (record.isFrozen)
+            return 0;
+
         // calculate unlock function
         // in this case, we are using a delayed linear unlock:
         // f(t) = amount * delta
@@ -224,29 +228,19 @@ contract Zerem {
         _;
     }
 
-    /*
-    // allow a user to freeze his own funds
     function freezeFunds(address user, uint256 lockTimestamp) public onlyLiquidator {
         TransferRecord storage record = _getRecord(user, lockTimestamp);
-        // require(msg.sender == record.sender, "must be funds sender");
         record.isFrozen = true;
         // TODO: emit event
     }
 
-    // allow a user to freeze his own funds
     function unfreezeFunds(address user, uint256 lockTimestamp) public onlyLiquidator {
         TransferRecord storage record = _getRecord(user, lockTimestamp);
-        // require(msg.sender == record.sender, "must be funds sender");
         record.isFrozen = false;
         // TODO: emit event
     }
-    */
 
     function liquidateFunds(address user, uint256 lockTimestamp) public onlyLiquidator {
-        // TODO: most likely should be liquidationResolver and not record.sender
-        // TransferRecord storage record = _getRecord(user, lockTimestamp);
-        // require(msg.sender == record.sender, "must be funds sender");
-
         // NOTE: to avoid sender unrightfully liquidating funds right before a user unlocks
         // it would be redundant to check if funds are frozen since it only requires a simple additional txn
         // just using a multiple of two for the total lock period
