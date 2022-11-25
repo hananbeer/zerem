@@ -7,9 +7,10 @@ contract Zerem {
     uint256 immutable public precision = 1e8;
     address immutable NATIVE = address(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
 
+    // release function is x^n
     uint8   public immutable unlockExponent;
 
-    // TODO: should there be a single token per zerem contract?
+    // a single token per zerem contract
     address public immutable underlyingToken;
     
     // minimum amount before locking funds, otherwise direct transfer
@@ -42,6 +43,10 @@ contract Zerem {
 
     event TransferLocked(address indexed user, uint256 amount, uint256 timestamp);
     event TransferFulfilled(address indexed user, uint256 amountUnlocked, uint256 amountRemaining);
+
+    event FundsFrozen(address indexed user, uint256 timestamp);
+    event FundsUnfrozen(address indexed user, uint256 timestamp);
+    event FundsLiquidated(address indexed user, uint256 timestamp);
 
     constructor(
         address _token,
@@ -218,7 +223,7 @@ contract Zerem {
     }
 
     function unlockFor(address user, uint256 lockTimestamp) public {
-        // TOOD: send relayer fees here
+        // TODO: send relayer fees here
         // (but only allow after unlockDelay + unlockPeriod + relayerGracePeriod)
         _unlockFor(user, lockTimestamp, user);
     }
@@ -231,13 +236,13 @@ contract Zerem {
     function freezeFunds(address user, uint256 lockTimestamp) public onlyLiquidator {
         TransferRecord storage record = _getRecord(user, lockTimestamp);
         record.isFrozen = true;
-        // TODO: emit event
+        emit FundsFrozen(user, lockTimestamp);
     }
 
     function unfreezeFunds(address user, uint256 lockTimestamp) public onlyLiquidator {
         TransferRecord storage record = _getRecord(user, lockTimestamp);
         record.isFrozen = false;
-        // TODO: emit event
+        emit FundsUnfrozen(user, lockTimestamp);
     }
 
     function liquidateFunds(address user, uint256 lockTimestamp) public onlyLiquidator {
@@ -246,5 +251,6 @@ contract Zerem {
         // just using a multiple of two for the total lock period
         require(block.timestamp > lockTimestamp + 2 * (unlockDelaySec + unlockPeriodSec), "liquidation too early");
         _unlockFor(user, lockTimestamp, liquidationResolver);
+        emit FundsLiquidated(user, lockTimestamp);
     }
 }
