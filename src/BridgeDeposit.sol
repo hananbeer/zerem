@@ -25,13 +25,13 @@ contract BridgeDeposit {
         uint256 _minLockAmount = 10e18;
         uint256 _unlockDelaySec = 24 hours;
         uint256 _unlockPeriodSec = 48 hours;
-        uint8   _unlockExponent = 1;
+        //uint8   _unlockExponent = 1;
         zerem = new Zerem(
             address(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE),
             _minLockAmount,
             _unlockDelaySec,
             _unlockPeriodSec,
-            _unlockExponent,
+            //_unlockExponent,
             address(this)
         );
 

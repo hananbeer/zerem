@@ -15,13 +15,13 @@ contract ZeremTest is Test {
         uint256 minLockAmount = 1000e18; // 1k units
         uint256 unlockDelaySec = 24 hours;
         uint256 unlockPeriodSec = 48 hours;
-        uint8   unlockExponent = 1; // linear release
+        //uint8   unlockExponent = 1; // linear release
 
         testToken = true;
         if (!testToken)
             underlyingToken = address(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
 
-        zerem = new Zerem(underlyingToken, minLockAmount, unlockDelaySec, unlockPeriodSec, unlockExponent, address(this));
+        zerem = new Zerem(underlyingToken, minLockAmount, unlockDelaySec, unlockPeriodSec, /*unlockExponent,*/ address(this));
     }
 
     function testTransferNoFunds() public {

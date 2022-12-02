@@ -7,9 +7,6 @@ contract Zerem {
     uint256 immutable public precision = 1e8;
     address immutable NATIVE = address(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
 
-    // release function is x^n
-    uint8   public immutable unlockExponent;
-
     // a single token per zerem contract
     address public immutable underlyingToken;
     
@@ -53,14 +50,12 @@ contract Zerem {
         uint256 _lockThreshold,
         uint256 _unlockDelaySec,
         uint256 _unlockPeriodSec,
-        uint8   _unlockExponent,
         address _liquidationResolver
     ) {
         underlyingToken = _token;
         lockThreshold = _lockThreshold;
         unlockDelaySec = _unlockDelaySec;
         unlockPeriodSec = _unlockPeriodSec;
-        unlockExponent = _unlockExponent;
         liquidationResolver = _liquidationResolver;
     }
 
@@ -169,20 +164,15 @@ contract Zerem {
         //          p
         uint256 deltaTimeNormalized = (deltaTimeDelayed * precision) / unlockPeriodSec;
 
-        // calculate the total amount unlocked amount
-        // it should return a factor in range (0..1)r, otherwise it is clamped
-        // f(ndt) = ndt^x where x = unlockExponent
-        uint256 factor = deltaTimeNormalized ** unlockExponent;
-
         // clamp f(ndt)
-        if (factor > precision)
-            factor = precision;
+        if (deltaTimeNormalized > precision)
+            deltaTimeNormalized = precision;
 
         // a = locked totalAmount
         // u = totalUnlockedAmount
         
         // u = a * f(ndt)
-        uint256 totalUnlockedAmount = (record.totalAmount * factor) / precision;
+        uint256 totalUnlockedAmount = (record.totalAmount * deltaTimeNormalized) / precision;
 
         // q = withdrawnAmount
         // subtract the already withdrawn amount from the unlocked amount
