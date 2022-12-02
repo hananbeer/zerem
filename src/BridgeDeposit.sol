@@ -1,8 +1,7 @@
-
 /**
  * Bridge source code taken from: https://etherscan.io/address/0x324C7ec7fb2Bc61646aC2f22f6D06AB29B6c87a3#code
  * Submitted for verification at Etherscan.io on 2021-08-18
-*/
+ */
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.13;
 
@@ -17,11 +16,7 @@ contract BridgeDeposit {
 
     Zerem public zerem;
 
-    constructor(
-        uint256 _maxDepositAmount,
-        uint256 _maxBalance,
-        bool _canReceiveDeposit
-    ) {
+    constructor(uint256 _maxDepositAmount, uint256 _maxBalance, bool _canReceiveDeposit) {
         uint256 _minLockAmount = 10e18;
         uint256 _unlockDelaySec = 24 hours;
         uint256 _unlockPeriodSec = 48 hours;
@@ -104,14 +99,17 @@ contract BridgeDeposit {
         require(msg.value <= maxDepositAmount, "Deposit amount is too big");
         _;
     }
+
     modifier isOwner() {
         require(msg.sender == owner, "Caller is not owner");
         _;
     }
+
     modifier canReceive() {
         require(canReceiveDeposit == true, "Contract is not allowed to receive ether");
         _;
     }
+
     modifier isLowerThanMaxBalance() {
         require(address(this).balance <= maxBalance, "Contract reached the max balance allowed");
         _;

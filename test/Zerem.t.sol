@@ -18,10 +18,12 @@ contract ZeremTest is Test {
         //uint8   unlockExponent = 1; // linear release
 
         testToken = true;
-        if (!testToken)
+        if (!testToken) {
             underlyingToken = address(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
+        }
 
-        zerem = new Zerem(underlyingToken, minLockAmount, unlockDelaySec, unlockPeriodSec, /*unlockExponent,*/ address(this));
+        zerem =
+        new Zerem(underlyingToken, minLockAmount, unlockDelaySec, unlockPeriodSec, /*unlockExponent,*/ address(this));
     }
 
     function testTransferNoFunds() public {
@@ -32,7 +34,7 @@ contract ZeremTest is Test {
     function testTransferNoLock() public {
         uint256 amount = 1e18;
         IERC20(zerem.underlyingToken()).transfer(address(zerem), amount);
-        
+
         vm.recordLogs();
         zerem.transferTo(address(this), amount);
         Vm.Log[] memory entries = vm.getRecordedLogs();

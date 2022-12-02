@@ -2,21 +2,22 @@
 pragma solidity ^0.8.13;
 
 import "../lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
+import "../lib/openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
 
 contract Zerem {
-    uint256 immutable public precision = 1e8;
+    uint256 public immutable precision = 1e8;
     address immutable NATIVE = address(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
 
     // a single token per zerem contract
     address public immutable underlyingToken;
-    
+
     // minimum amount before locking funds, otherwise direct transfer
     uint256 public immutable lockThreshold;
 
-    // timeframe without unlocking, in seconds
+    // time frame without unlocking, in seconds
     uint256 public immutable unlockDelaySec;
 
-    // timeframe of gradual, linear unlock, in seconds
+    // time frame of gradual, linear unlock, in seconds
     uint256 public immutable unlockPeriodSec;
 
     // an address used to resolve liquidations (multisig, governance, etc.)
@@ -31,18 +32,17 @@ contract Zerem {
     }
 
     // keccak256(address user, uint256 timestamp) => Transfer
-    mapping (bytes32 => TransferRecord) public pendingTransfers;
+    mapping(bytes32 => TransferRecord) public pendingTransfers;
 
     // user => amount
-    mapping (address => uint256) public pendingTotalBalances;
+    mapping(address => uint256) public pendingTotalBalances;
 
     uint256 public totalTokenBalance;
 
     event TransferLocked(address indexed user, uint256 amount, uint256 timestamp);
     event TransferFulfilled(address indexed user, uint256 amountUnlocked, uint256 amountRemaining);
 
-    event FundsFrozen(address indexed user, uint256 timestamp);
-    event FundsUnfrozen(address indexed user, uint256 timestamp);
+    event FundsFreezeStateUpdate(address indexed user, uint256 timestamp, bool isFrozen);
     event FundsLiquidated(address indexed user, uint256 timestamp);
 
     constructor(
@@ -52,6 +52,10 @@ contract Zerem {
         uint256 _unlockPeriodSec,
         address _liquidationResolver
     ) {
+        require(_token != address(0), "must specify token");
+        require(_unlockDelaySec < 90 days, "warning: delay might be too large");
+        require(_unlockPeriodSec < 90 days, "warning: delay might be too large");
+
         underlyingToken = _token;
         lockThreshold = _lockThreshold;
         unlockDelaySec = _unlockDelaySec;
@@ -60,19 +64,25 @@ contract Zerem {
     }
 
     function _getLockedBalance() internal view returns (uint256) {
-        if (underlyingToken == NATIVE)
+        if (underlyingToken == NATIVE) {
             return address(this).balance;
-        else
-           return IERC20(underlyingToken).balanceOf(address(this));
+        } else {
+            return IERC20(underlyingToken).balanceOf(address(this));
+        }
     }
 
     function _sendFunds(address receiver, uint256 amount) internal {
         if (underlyingToken == NATIVE) {
-            (bool success, ) = payable(receiver).call{gas: 3000, value: amount}(hex"");
+            bool success;
+            assembly {
+                success := call(6000, receiver, amount, 0, 0, 0, 0)
+            }
             require(success, "sending ether failed");
         } else {
             require(msg.value == 0, "msg.value must be zero");
-            IERC20(underlyingToken).transfer(receiver, amount);
+            // SECURITY NOTE: as audit [M-06] suggests, if underlyingToken has
+            // transfer fees then accounting may be incorrect.
+            SafeERC20.safeTransfer(IERC20(underlyingToken), receiver, amount);
         }
     }
 
@@ -88,7 +98,7 @@ contract Zerem {
     }
 
     function _getRecord(address user, uint256 lockTimestamp) internal view returns (TransferRecord storage) {
-        bytes32 transferId = keccak256(abi.encode(user, lockTimestamp));
+        bytes32 transferId = _getTransferId(user, lockTimestamp);
         return _getRecordById(transferId);
     }
 
@@ -124,8 +134,9 @@ contract Zerem {
         TransferRecord storage record = _getRecordById(transferId);
 
         // first make sure funds were not frozen
-        if (record.isFrozen)
+        if (record.isFrozen) {
             return 0;
+        }
 
         // calculate unlock function
         // in this case, we are using a delayed linear unlock:
@@ -146,16 +157,18 @@ contract Zerem {
         // delta time:
         // dt = t - t0
         uint256 deltaTime = block.timestamp - record.lockTimestamp;
-        if (deltaTime < unlockDelaySec)
+        if (deltaTime < unlockDelaySec) {
             return 0;
+        }
 
         // delta time delayed:
         // ddt = dt - d
         uint256 deltaTimeDelayed = (deltaTime - unlockDelaySec);
 
         // ensure 0 <= (ddt / p) <= 1
-        if (deltaTimeDelayed >= unlockPeriodSec)
+        if (deltaTimeDelayed >= unlockPeriodSec) {
             return record.remainingAmount;
+        }
 
         // r = precision
         // normalized delta time: (0..1)r
@@ -165,26 +178,29 @@ contract Zerem {
         uint256 deltaTimeNormalized = (deltaTimeDelayed * precision) / unlockPeriodSec;
 
         // clamp f(ndt)
-        if (deltaTimeNormalized > precision)
+        if (deltaTimeNormalized > precision) {
             deltaTimeNormalized = precision;
+        }
 
         // a = locked totalAmount
         // u = totalUnlockedAmount
-        
+
         // u = a * f(ndt)
         uint256 totalUnlockedAmount = (record.totalAmount * deltaTimeNormalized) / precision;
 
         // q = withdrawnAmount
         // subtract the already withdrawn amount from the unlocked amount
         uint256 withdrawnAmount = record.totalAmount - record.remainingAmount;
-        if (totalUnlockedAmount < withdrawnAmount)
+        if (totalUnlockedAmount < withdrawnAmount) {
             return 0;
+        }
 
         // w = withdrawableAmount
         // w = u - q
         withdrawableAmount = totalUnlockedAmount - withdrawnAmount;
-        if (withdrawableAmount > record.remainingAmount)
+        if (withdrawableAmount > record.remainingAmount) {
             withdrawableAmount = record.remainingAmount;
+        }
     }
 
     function getWithdrawableAmount(address user, uint256 lockTimestamp) public view returns (uint256 amount) {
@@ -194,15 +210,15 @@ contract Zerem {
 
     // 1. Transfer funds to Zerem
     // 2. Calculate funds user owns (amount < lockThreshold)
-    // 3. Check if user can recive funds now or funds must be locked
-    function transferTo(address user, uint256 amount) payable public {
+    // 3. Check if user can receive funds now or funds must be locked
+    function transferTo(address user, uint256 amount) public payable {
         uint256 oldBalance = totalTokenBalance;
         totalTokenBalance = _getLockedBalance();
         uint256 transferredAmount = totalTokenBalance - oldBalance;
         // if this requirement fails it implies calling contract failure
         // to transfer this contract `amount` tokens.
         require(transferredAmount >= amount, "not enough tokens");
-        
+
         if (amount < lockThreshold) {
             _sendFunds(user, amount);
             emit TransferFulfilled(user, amount, 0);
@@ -223,16 +239,10 @@ contract Zerem {
         _;
     }
 
-    function freezeFunds(address user, uint256 lockTimestamp) public onlyLiquidator {
+    function updateFreezeState(address user, uint256 lockTimestamp, bool isFrozen) public onlyLiquidator {
         TransferRecord storage record = _getRecord(user, lockTimestamp);
-        record.isFrozen = true;
-        emit FundsFrozen(user, lockTimestamp);
-    }
-
-    function unfreezeFunds(address user, uint256 lockTimestamp) public onlyLiquidator {
-        TransferRecord storage record = _getRecord(user, lockTimestamp);
-        record.isFrozen = false;
-        emit FundsUnfrozen(user, lockTimestamp);
+        record.isFrozen = isFrozen;
+        emit FundsFreezeStateUpdate(user, lockTimestamp, isFrozen);
     }
 
     function liquidateFunds(address user, uint256 lockTimestamp) public onlyLiquidator {

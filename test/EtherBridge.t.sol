@@ -20,13 +20,11 @@ contract BridgeTest is Test {
 
         bridge = new BridgeDeposit(1000e18, 1e28, true);
         vm.deal(address(this), 1e28);
-        (bool success, ) = payable(bridge).call{value: 1e28}(hex"");
+        (bool success,) = payable(bridge).call{value: 1e28}(hex"");
         require(success);
     }
 
-    receive () payable external {
-        
-    }
+    receive() external payable {}
 
     function testBridgeNoLock() public {
         uint256 amount = 1e18;

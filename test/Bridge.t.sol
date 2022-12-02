@@ -20,13 +20,11 @@ contract BridgeTest is Test {
 
         bridge = new BridgeDeposit(1000e18, 1e28, true);
         vm.deal(address(this), 1e28);
-        (bool success, ) = payable(bridge).call{value: 1e28}(hex"");
+        (bool success,) = payable(bridge).call{value: 1e28}(hex"");
         require(success);
     }
 
-    receive () payable external {
-        
-    }
+    receive() external payable {}
 
     function testTransferNoLock() public {
         uint256 amount = 1e18;
@@ -42,7 +40,7 @@ contract BridgeTest is Test {
         assertEq(withdrawnAmount, amount);
         assertEq(remainingAmount, uint256(0));
     }
-/*
+    /*
     function testTransferLock() public {
         uint256 amount = 1000e18;
         IERC20(zerem.underlyingToken()).transfer(address(zerem), amount);
