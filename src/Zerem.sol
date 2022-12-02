@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.13;
+pragma solidity =0.8.13;
 
 import "../lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import "../lib/openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
 
 contract Zerem {
-    uint256 public immutable precision = 1e8;
-    address immutable NATIVE = address(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
+    uint256 public constant precision = 1e8;
+    address constant NATIVE = address(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE);
 
     // a single token per zerem contract
     address public immutable underlyingToken;
@@ -93,7 +93,7 @@ contract Zerem {
 
     function _getRecordById(bytes32 transferId) internal view returns (TransferRecord storage) {
         TransferRecord storage record = pendingTransfers[transferId];
-        require(record.totalAmount > 0, "no such transfer record");
+        require(record.totalAmount != 0, "no such transfer record");
         return record;
     }
 
@@ -120,7 +120,7 @@ contract Zerem {
     function _unlockFor(address user, uint256 lockTimestamp, address receiver) internal {
         bytes32 transferId = keccak256(abi.encode(user, lockTimestamp));
         uint256 amount = _getWithdrawableAmount(transferId);
-        require(amount > 0, "no withdrawable funds");
+        require(amount != 0, "no withdrawable funds");
         TransferRecord storage record = pendingTransfers[transferId];
         uint256 remainingAmount = record.remainingAmount - amount;
         record.remainingAmount = remainingAmount;
@@ -191,7 +191,7 @@ contract Zerem {
         // q = withdrawnAmount
         // subtract the already withdrawn amount from the unlocked amount
         uint256 withdrawnAmount = record.totalAmount - record.remainingAmount;
-        if (totalUnlockedAmount < withdrawnAmount) {
+        if (totalUnlockedAmount <= withdrawnAmount) {
             return 0;
         }
 
@@ -203,7 +203,7 @@ contract Zerem {
         }
     }
 
-    function getWithdrawableAmount(address user, uint256 lockTimestamp) public view returns (uint256 amount) {
+    function getWithdrawableAmount(address user, uint256 lockTimestamp) external view returns (uint256 amount) {
         bytes32 transferId = _getTransferId(user, lockTimestamp);
         return _getWithdrawableAmount(transferId);
     }
@@ -211,7 +211,7 @@ contract Zerem {
     // 1. Transfer funds to Zerem
     // 2. Calculate funds user owns (amount < lockThreshold)
     // 3. Check if user can receive funds now or funds must be locked
-    function transferTo(address user, uint256 amount) public payable {
+    function transferTo(address user, uint256 amount) external payable {
         uint256 oldBalance = totalTokenBalance;
         totalTokenBalance = _getLockedBalance();
         uint256 transferredAmount = totalTokenBalance - oldBalance;
@@ -228,7 +228,7 @@ contract Zerem {
         }
     }
 
-    function unlockFor(address user, uint256 lockTimestamp) public {
+    function unlockFor(address user, uint256 lockTimestamp) external {
         // TODO: send relayer fees here
         // (but only allow after unlockDelay + unlockPeriod + relayerGracePeriod)
         _unlockFor(user, lockTimestamp, user);
@@ -239,13 +239,13 @@ contract Zerem {
         _;
     }
 
-    function updateFreezeState(address user, uint256 lockTimestamp, bool isFrozen) public onlyLiquidator {
+    function updateFreezeState(address user, uint256 lockTimestamp, bool isFrozen) external onlyLiquidator {
         TransferRecord storage record = _getRecord(user, lockTimestamp);
         record.isFrozen = isFrozen;
         emit FundsFreezeStateUpdate(user, lockTimestamp, isFrozen);
     }
 
-    function liquidateFunds(address user, uint256 lockTimestamp) public onlyLiquidator {
+    function liquidateFunds(address user, uint256 lockTimestamp) external onlyLiquidator {
         // NOTE: to avoid sender unrightfully liquidating funds right before a user unlocks
         // it would be redundant to check if funds are frozen since it only requires a simple additional txn
         // just using a multiple of two for the total lock period

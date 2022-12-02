@@ -3,7 +3,7 @@
  * Submitted for verification at Etherscan.io on 2021-08-18
  */
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.13;
+pragma solidity =0.8.13;
 
 import "../src/Zerem.sol";
 //import "../src/ZeremFactory.sol";
