@@ -59,6 +59,10 @@ The protocol does not work as expected in its core functionality and can also re
 
 Redesign the `unlockExponent` logic or just hardcode it to always be linear (a value of 1)
 
+## Client response
+
+Fixed by removing the `unlockExponent` logic
+
 # [M-01] Unsafe call to `ERC20::transfer` can result in stuck funds
 
 ## Proof of Concept
@@ -83,6 +87,10 @@ If an `ERC20::transfer` call fails it will lead to stuck funds for a user. This 
 ## Recommendation
 
 Use OpenZeppelin’s `SafeERC20` library and change `transfer` to `safeTransfer`
+
+## Client response
+
+Fixed by adding `SafeERC20`
 
 # [M-02] Gas stipend for external call might be insufficient and lead to stuck ETH
 
@@ -111,6 +119,10 @@ Some recipients will lose access to all of their claimable ETH from protocols th
 
 At least doubling down the gas stipend should help in most scenarios, but maybe think about dynamic configuration options for it as well
 
+## Client response
+
+Fixed by doubling the gas stipend
+
 # [M-03] Gas griefing/theft is possible on unsafe external call
 
 ## Proof of Concept
@@ -138,6 +150,10 @@ assembly {
 }
 ```
 
+## Client response
+
+Fixed by using a low-level assembly `call`
+
 # [M-04] Centralisation risk with `liquidationResolver` as it can steal 100% of locked funds
 
 ## Proof of Concept
@@ -157,6 +173,10 @@ Centralisation vulnerabilities usually require a malicious or a compromised acco
 ## Recommendation
 
 Reconsider if the freeze/liquidate funds is a mandatory mechanism for the protocol
+
+## Client response
+
+Acknowledged
 
 # [M-05] Missing configuration validations & constraints can lead to stuck funds
 
@@ -187,6 +207,10 @@ This can possibly lead to user funds being stuck in Zerem, but this requires mis
 
 Add sensible constraints for the valid values of `unlockDelaySec` and `unlockPeriodSec` in the constructor of `Zerem.sol`
 
+## Client response
+
+Fixed by adding constraints in the constructor
+
 # [M-06] ERC20 tokens that have a fee-on-transfer mechanism require special handling
 
 ## Proof of Concept
@@ -208,6 +232,10 @@ If a token with a fee-on-transfer mechanism is used and not properly handled on 
 ## Recommendation
 
 Integration of such tokens will require special handling on the integrating protocol side (pre-calculating the fee, so the `amount` argument passed has the correct value) and possibly on Zerem’s side. Consider either better documentation for those or advise integrating protocols to not transfer such tokens through Zerem.
+
+## Client response
+
+Added a warning comment in the code
 
 # [M-07] Protocol does not work with ERC20 tokens that have a mechanism for balance modifications outside of transfers
 
@@ -231,9 +259,11 @@ Funds can be stuck in Zerem, but it requires a special type of ERC20 token, so i
 
 Allow partial unlock of funds or document that the protocol does not support such tokens, so integrating protocols do not transfer them through Zerem. Also you can add functionality to rescue excess funds out of the Zerem protocol
 
-# QA report - low severity & non-critical issues
+## Client response
 
----
+Acknowledged
+
+# QA report - low severity & non-critical issues
 
 ## [QA-01] Use latest Solidity version with a stable pragma statement
 
@@ -288,8 +318,6 @@ Currently the key in the `pendingTransfers` mapping is calculated by this
 I’d say that just using a simple uint256 nonce for each `TransferRecord` would work just fine. It will also be simpler and more gas efficient.
 
 # Gas optimisation report
-
----
 
 ## [G-01] Remove the `pendingTotalBalances` mapping as it is not used for anything
 
