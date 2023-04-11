@@ -146,7 +146,7 @@ contract ZeremTest is Test {
         zerem.unlockFor(address(this), lockTimestamp);
     }
 
-
+    // test written by STARZ
     function testTransferNoLock2() public {
         uint256 amount2 = 2e18;
         IERC20(zerem.underlyingToken()).transfer(address(zerem), amount2);
