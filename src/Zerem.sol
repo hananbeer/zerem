@@ -65,6 +65,10 @@ contract Zerem {
     }
 
     function _sendFunds(address receiver, uint256 amount) internal {
+        // TODO: high severity fix suggested by STARZ.
+        // this fix should be sent back to be audited.
+        totalTokenBalance -= amount;
+
         if (underlyingToken == NATIVE) {
             (bool success, ) = payable(receiver).call{gas: 3000, value: amount}(hex"");
             require(success, "sending ether failed");
